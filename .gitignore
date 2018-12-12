@@ -1,0 +1,4 @@
+.hidden
+.DS_Store
+node_modules/*
+PERSISTENT_STORAGE/*

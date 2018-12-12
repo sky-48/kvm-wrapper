@@ -1,0 +1,116 @@
+<html lang="en">
+
+<head>
+  <title>Koudai Live Downloader OL</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</head>
+
+<body>
+  <div id="last-run" class="alert alert-success"> 正在连接服务器…… </div>
+  <ul id="list-of-runs" class="list-group collapse"></ul>
+  <div class="well">
+    <h2>Team X 成员直播</h2>
+    <p>成员：陈琳, 陈韫凌, 冯晓菲, 鲁静萍, 吕一, 李钊, 潘瑛琪, 祁静, 宋昕冉, 孙歆文, 汪佳翎, 王晓佳, 谢天依, 杨冰怡, 张丹三, 张嘉予, 邵雪聪, 李晶, 林忆宁, 汪束,
+      杨韫玉 <a href="#">（设置页面还没做）</a></p>
+  </div>
+  <ul id='list-of-files' class="list-group"></ul>
+</body>
+
+<script>
+  httpRequest("GET", "/v1/get-status", (err, data) => {
+    const { running, history } = JSON.parse(data);
+    let msg;
+    if (running)
+      msg = `《口袋48》同步中，请稍后…… <a href="#" onclick="location.reload()">（刷新）</a>`;
+    else {
+      const lastSuccessfulRun = history.filter(it => it.code == 0)[0];
+      if (lastSuccessfulRun) {
+        msg = `<strong>口袋48：</strong>最近同步 ${getRelativeTime(lastSuccessfulRun.time)}。`;
+      } else {
+        msg = "好久没有同步成功过了。";
+      }
+      msg += `<a href="#" data-toggle="collapse" data-target="#list-of-runs">（详情）</a>`;
+    }
+    document.getElementById('last-run').innerHTML = msg;
+
+    history.forEach(it => {
+      const el = document.createElement('li');
+      el.setAttribute("class", `list-group-item list-group-item-${(it.code == 0) ? "success" : "danger"}`);
+      el.innerText = `${(it.code == 0) ? "同步成功" : "同步失败"}：${getRelativeTime(it.time)}`;
+      document.getElementById('list-of-runs').appendChild(el);
+    });
+    const button = document.createElement('li');
+    button.setAttribute("class", "list-group-item list-group-item-info btn btn-primary");
+    button.setAttribute("onclick", "invoke_kvm()");
+    button.innerText = "立即同步";
+    document.getElementById('list-of-runs').appendChild(button);
+  });
+
+  httpRequest("GET", "/v1/get-files", (err, data) => {
+    JSON.parse(data).forEach(file => {
+      const el = document.createElement('a');
+      el.setAttribute("class", "list-group-item list-group-item-action");
+      el.setAttribute("href", file.url);
+      el.innerText = `${file.name} (${getReadableFileSize(file.size)})`;
+      document.getElementById('list-of-files').appendChild(el);
+    });
+  });
+
+  function invoke_kvm() {
+    httpRequest("POST", "/v1/kvm48-invoke", (err, data) => { });
+    setTimeout(() => {
+      location.reload();
+    }, 1000);
+  };
+
+  function getReadableFileSize(bytes) {
+    if (bytes > 1024 * 1024 * 1024) {
+      return Math.round(bytes / 1024 / 1024 / 10.24) / 100 + " GB";
+    }
+    if (bytes > 1024 * 1024) {
+      return Math.round(bytes / 1024 / 1024) + " MB";
+    }
+    if (bytes > 1024) {
+      return Math.round(bytes / 1024) + " KB";
+    }
+    return "0 KB";
+  }
+
+  function getRelativeTime(time) {
+    let value = (Date.now() - time) / 1000;
+    let suffix = "前";
+    if (value < 0) {
+      suffix = "后";
+      value *= -1;
+    }
+    let unit = "秒";
+    if (value / 60 > 1) {
+      value = value / 60;
+      unit = "分钟";
+      if (value / 60 > 1) {
+        value = value / 60;
+        unit = "小时";
+        if (value / 24 > 1) {
+          value = value / 24;
+          unit = "天";
+        }
+      }
+    }
+    return Math.floor(value) + unit + suffix;
+  }
+
+  function httpRequest(method, url, callback) {
+    var xhr = new XMLHttpRequest();
+    xhr.open(method, url, true);
+    xhr.onload = function () {
+      callback(status, xhr.response);
+    };
+    xhr.send();
+  };
+</script>
+
+</html>
